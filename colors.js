@@ -6,13 +6,14 @@ const Palette = {
     Peach: 0xf19c98,
     Plum: 0x3c3951,
     White: 0xffffff,
-    Green: 0x3f9b0b
+    Green: 0x3f9b0b,
+    Lime: 0xc1f376
 };
 
 const Colors = {
     BackgroundColor: Palette.Teal,
     LightColor: Palette.White,
-    TerrainColor: Palette.Green
+    TerrainColor: Palette.Lime
 };
 
 export default Colors;
