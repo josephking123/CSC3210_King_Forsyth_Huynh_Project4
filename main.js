@@ -58,7 +58,24 @@ function refreshVertices() {
     terrain.geometry.attributes.position.needsUpdate = true;
     terrain.geometry.computeVertexNormals();
 }
+// Raycasting and collision detection
+const raycaster = new THREE.Raycaster();
+// Create a point from the main camera looking straight
+const pointer = new THREE.Vector3(0, 0, 1);
 
+// Cast a ray from the main camera to check for intersection with the objects
+raycaster.setFromCamera(pointer, camera);
+
+const intersects = raycaster.intersectObjects(scene.children, true);
+// Check each tree for collision with the player
+for (let i = 0; i < intersects.length; i++) {
+    if (intersects[i].distance > 0 && intersects[i].distance < 1) {
+        // TODO: Prevent the person from going further into the colliding object
+        break;
+    }
+}
+
+// Clock used to get the delta time
 var clock = new THREE.Clock();
 var movementSpeed = 60;
 var delta = clock.getDelta();
