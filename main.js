@@ -37,7 +37,9 @@ scene.add(light);
 // Setup the terrain
 // Code taken from the Unit 9 Perlin Terrain Example
 var geometry = new THREE.PlaneGeometry(2000, 2000, 256, 256);
-var material = new THREE.MeshLambertMaterial({ color: Colors.TerrainColor });
+const texture = new THREE.TextureLoader().load('./grass.jpg');
+
+var material = new THREE.MeshLambertMaterial({ color: Colors.TerrainColor, map: texture });
 var terrain = new THREE.Mesh(geometry, material);
 terrain.rotation.x = -Math.PI / 2;
 scene.add(terrain);
