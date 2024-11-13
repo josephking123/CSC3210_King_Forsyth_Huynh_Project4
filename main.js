@@ -102,10 +102,17 @@ terrain.receiveShadow = true;
 function updateSkyColor() {
     // Calculate a blend factor based on the sun’s Y position
     let sunHeight = sunMesh.position.y;
-    let blendFactor = Math.max(0, Math.min(1, (sunHeight + 500) / 1000)); // Normalizes sun height between 0 and 1
-
-    // Interpolate between the daytime color and nighttime color
-    scene.background = new THREE.Color(Colors.DayColor).clone().lerp(new THREE.Color(Colors.NightColor), 1 - blendFactor);
+    let blendFactor;
+    if (sunHeight > 0) {
+        // Sun is above horizon - interpolate between day and dusk colors
+        blendFactor = Math.max(0, Math.min(1, sunHeight / 500));
+        scene.background = new THREE.Color(Colors.DayColor).clone().lerp(new THREE.Color(Colors.DawnDuskColor), 1 - blendFactor);
+    } else {
+        // Sun is below horizon - interpolate between dusk and night colors
+        blendFactor = Math.max(0, Math.min(1, (sunHeight + 500) / 500));
+        scene.background = new THREE.Color(Colors.DawnDuskColor).clone().lerp(new THREE.Color(Colors.NightColor), 1 - blendFactor);
+    }
+    
 }
 const cycleSpeed = (Math.PI / 12) / 10; // Speed of day-night cycle, 15 degrees (pi/12 radians) every 10 seconds
 
