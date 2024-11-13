@@ -58,6 +58,84 @@ function refreshVertices() {
     terrain.geometry.attributes.position.needsUpdate = true;
     terrain.geometry.computeVertexNormals();
 }
+
+// Lighting
+// Create sunlight
+var sunlight = new THREE.DirectionalLight(Colors.DayColor, 1.5);
+sunlight.position.set(100, 500, 100)
+sunlight.castShadow = true;
+sunlight.shadow.mapSize.width = 2048;
+sunlight.shadow.mapSize.height = 2048;
+sunlight.shadow.camera.near = 0.5;
+sunlight.shadow.camera.far = 2000;
+sunlight.shadow.camera.left = -1000;
+sunlight.shadow.camera.right = 1000;
+sunlight.shadow.camera.top = 1000;
+sunlight.shadow.camera.bottom = -1000;
+
+scene.add(sunlight);
+
+// Add the sun geometry
+var sunGeometry = new THREE.SphereGeometry(50, 32, 32);
+var sunMaterial = new THREE.MeshBasicMaterial({ color: Colors.SunColor });
+var sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+sunMesh.position.set(1000, 500, 1000); // Initial position for sun
+scene.add(sunMesh);
+
+// Add the moon light
+var moonlight = new THREE.DirectionalLight(Colors.NightColor, 0.3);
+moonlight.position.set(-1000, -500, -1000);
+scene.add(moonlight);
+
+// Add the moon geometry
+var moonGeometry = new THREE.SphereGeometry(50, 32, 32);
+var moonMaterial = new THREE.MeshBasicMaterial({ color: Colors.MoonColor });
+var moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+moonMesh.position.set(-1000, -500, -1000); // Initial position for moon
+scene.add(moonMesh);
+
+// Enable shadows for the terrain
+terrain.castShadow = true;
+terrain.receiveShadow = true;
+
+// Function to update the sky color based on the sun's height
+function updateSkyColor() {
+    // Calculate a blend factor based on the sun’s Y position
+    let sunHeight = sunMesh.position.y;
+    let blendFactor = Math.max(0, Math.min(1, (sunHeight + 500) / 1000)); // Normalizes sun height between 0 and 1
+
+    // Interpolate between the daytime color and nighttime color
+    scene.background = new THREE.Color(Colors.DayColor).clone().lerp(new THREE.Color(Colors.NightColor), 1 - blendFactor);
+}
+const cycleSpeed = (Math.PI / 12) / 10; // Speed of day-night cycle, 15 degrees (pi/12 radians) every 10 seconds
+
+function daylightCycle(delta) {
+    // Get the current angle based on delta time
+    // let angleDelta = cycleSpeed * delta;
+    let currentAngle = clock.getElapsedTime() * cycleSpeed;
+
+    // Move the sun and moon in a circular path
+    sunMesh.position.x = 1000 * Math.cos(currentAngle);
+    sunMesh.position.y = 500 * Math.sin(currentAngle);
+    sunMesh.position.z = 1000 * Math.sin(currentAngle);
+
+    moonMesh.position.x = -sunMesh.position.x;
+    moonMesh.position.y = -sunMesh.position.y;
+    moonMesh.position.z = -sunMesh.position.z;
+
+    // Sync sunlight with sun and moonlight with moon
+    sunlight.position.copy(sunMesh.position);
+    moonlight.position.copy(moonMesh.position);
+
+    // Adjust light intensity for day and night
+    let sunHeight = sunMesh.position.y;
+    sunlight.intensity = Math.max(0.1, sunHeight / 500); // Sunlight fades as it approaches horizon
+    moonlight.intensity = Math.max(0.3, (250 - sunHeight) / 500); // Moonlight increases as sun sets
+
+    // Update the sky color based on the sun's position
+    updateSkyColor();
+}
+
 // Raycasting and collision detection
 const raycaster = new THREE.Raycaster();
 // Create a point from the main camera looking straight
@@ -84,6 +162,8 @@ function update() {
     // terrain.position.z += movementSpeed * delta;
     // camera.position.z += movementSpeed * delta;
     refreshVertices();
+
+    daylightCycle(delta);
 }
 
 function animate() {
@@ -99,31 +179,31 @@ animate();
 // Set up the keyboard controls:
 function keyHandler(e) {
     switch (e.keyCode) {
-        case 87: // The 'W' key
+        case 87: // W
             delta = clock.getDelta();
-            terrain.position.z += movementSpeed * delta;
+            // terrain.position.z += movementSpeed * delta;
             camera.position.z -= movementSpeed * delta;
             refreshVertices();
             break;
-        case 65: // The 'A' key
+        case 65: // A
             delta = clock.getDelta();
-            terrain.position.x += movementSpeed * delta;
+            // terrain.position.x += movementSpeed * delta;
             camera.position.x -= movementSpeed * delta;
             refreshVertices();
             break;
-        case 83: // The 'S' key
+        case 83: // S
             delta = clock.getDelta();
-            terrain.position.z -= movementSpeed * delta;
+            // terrain.position.z -= movementSpeed * delta;
             camera.position.z += movementSpeed * delta;
             refreshVertices();
             break;
-        case 68: // The 'D' key
+        case 68: // D
             delta = clock.getDelta();
-            terrain.position.x -= movementSpeed * delta;
+            // terrain.position.x -= movementSpeed * delta;
             camera.position.x += movementSpeed * delta;
             refreshVertices();
             break;
-        case 70: // The 'F' key
+        case 70: // F
             // Toggle the flashlight
             break;
     }
