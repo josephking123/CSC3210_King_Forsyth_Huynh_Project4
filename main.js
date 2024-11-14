@@ -95,7 +95,7 @@ moonMesh.position.set(-1000, -500, -1000); // Initial position for moon
 scene.add(moonMesh);
 
 // Enable shadows for the terrain
-terrain.castShadow = true;
+terrain.castShadow = false;
 terrain.receiveShadow = true;
 
 // Function to update the sky color based on the sun's height
