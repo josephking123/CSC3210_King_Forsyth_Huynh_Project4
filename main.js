@@ -3,8 +3,8 @@ import Colors from './colors.js';
 import { Perlin } from './perlin.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-var width = window.innerWidth;
-var height = window.innerHeight;
+const width = window.innerWidth;
+const height = window.innerHeight;
 
 // Set up the scene, camera, and renderer
 var scene = new THREE.Scene();
@@ -48,8 +48,8 @@ var perlin = new Perlin();
 var peak = 60;
 var smoothing = 300;
 function refreshVertices() {
-    var vertices = terrain.geometry.attributes.position.array;
-    for (var i = 0; i <= vertices.length; i += 3) {
+    let vertices = terrain.geometry.attributes.position.array;
+    for (let i = 0; i <= vertices.length; i += 3) {
         vertices[i + 2] = peak * perlin.noise(
             (terrain.position.x + vertices[i]) / smoothing,
             (terrain.position.z + vertices[i + 1]) / smoothing
@@ -112,7 +112,7 @@ function updateSkyColor() {
         blendFactor = Math.max(0, Math.min(1, (sunHeight + 500) / 500));
         scene.background = new THREE.Color(Colors.DawnDuskColor).clone().lerp(new THREE.Color(Colors.NightColor), 1 - blendFactor);
     }
-    
+
 }
 const cycleSpeed = (Math.PI / 12) / 10; // Speed of day-night cycle, 15 degrees (pi/12 radians) every 10 seconds
 
@@ -183,31 +183,55 @@ function animate() {
 }
 animate();
 
+var headPosition = 0, increase = true;
+/**
+ * Head bobbing code to move the camera look at up and down (bonus)
+ */
+function headBob() {
+    if (increase) {
+        if (headPosition <= 100) {
+            headPosition += 20;
+        } else {
+            increase = false;
+            headPosition += 20;
+        }
+    } else {
+        if (headPosition >= -100) {
+            headPosition -= 20;
+        } else {
+            increase = true;
+            headPosition += 20;
+        }
+    }
+    camera.lookAt(new THREE.Vector3(0.0, 0.0, headPosition));
+}
+
 // Set up the keyboard controls:
 function keyHandler(e) {
     switch (e.keyCode) {
         case 87: // W
-            delta = clock.getDelta();
+            // delta = clock.getDelta();
             // terrain.position.z += movementSpeed * delta;
-            camera.position.z -= movementSpeed * delta;
+            camera.position.z -= 6;
+            headBob();
             refreshVertices();
             break;
         case 65: // A
-            delta = clock.getDelta();
+            // delta = clock.getDelta();
             // terrain.position.x += movementSpeed * delta;
-            camera.position.x -= movementSpeed * delta;
+            camera.position.x -= 6;
             refreshVertices();
             break;
         case 83: // S
-            delta = clock.getDelta();
+            // delta = clock.getDelta();
             // terrain.position.z -= movementSpeed * delta;
-            camera.position.z += movementSpeed * delta;
+            camera.position.z += 6;
             refreshVertices();
             break;
         case 68: // D
-            delta = clock.getDelta();
+            // delta = clock.getDelta();
             // terrain.position.x -= movementSpeed * delta;
-            camera.position.x += movementSpeed * delta;
+            camera.position.x += 6;
             refreshVertices();
             break;
         case 70: // F
