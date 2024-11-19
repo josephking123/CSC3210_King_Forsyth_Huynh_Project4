@@ -3,12 +3,12 @@ import Colors from './colors.js';
 import { Perlin } from './perlin.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const width = window.innerWidth;
-const height = window.innerHeight;
+var width = window.innerWidth;
+var height = window.innerHeight;
 
 // Set up the scene, camera, and renderer
 var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera(45, width / height, 1, 3000);
+var camera = new THREE.PerspectiveCamera(45, width / height, 1, 5000);
 var cameraTarget = { x: 0, y: 0, z: 0 };
 camera.position.y = 70;
 camera.position.z = 1000;
@@ -48,8 +48,8 @@ var perlin = new Perlin();
 var peak = 60;
 var smoothing = 300;
 function refreshVertices() {
-    let vertices = terrain.geometry.attributes.position.array;
-    for (let i = 0; i <= vertices.length; i += 3) {
+    var vertices = terrain.geometry.attributes.position.array;
+    for (var i = 0; i <= vertices.length; i += 3) {
         vertices[i + 2] = peak * perlin.noise(
             (terrain.position.x + vertices[i]) / smoothing,
             (terrain.position.z + vertices[i + 1]) / smoothing
@@ -112,7 +112,7 @@ function updateSkyColor() {
         blendFactor = Math.max(0, Math.min(1, (sunHeight + 500) / 500));
         scene.background = new THREE.Color(Colors.DawnDuskColor).clone().lerp(new THREE.Color(Colors.NightColor), 1 - blendFactor);
     }
-
+    
 }
 const cycleSpeed = (Math.PI / 12) / 10; // Speed of day-night cycle, 15 degrees (pi/12 radians) every 10 seconds
 
@@ -183,55 +183,31 @@ function animate() {
 }
 animate();
 
-var headPosition = 0, increase = true;
-/**
- * Head bobbing code to move the camera look at up and down (bonus)
- */
-function headBob() {
-    if (increase) {
-        if (headPosition <= 100) {
-            headPosition += 20;
-        } else {
-            increase = false;
-            headPosition += 20;
-        }
-    } else {
-        if (headPosition >= -100) {
-            headPosition -= 20;
-        } else {
-            increase = true;
-            headPosition += 20;
-        }
-    }
-    camera.lookAt(new THREE.Vector3(0.0, 0.0, headPosition));
-}
-
 // Set up the keyboard controls:
 function keyHandler(e) {
     switch (e.keyCode) {
         case 87: // W
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.z += movementSpeed * delta;
-            camera.position.z -= 6;
-            headBob();
+            camera.position.z -= movementSpeed * delta;
             refreshVertices();
             break;
         case 65: // A
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.x += movementSpeed * delta;
-            camera.position.x -= 6;
+            camera.position.x -= movementSpeed * delta;
             refreshVertices();
             break;
         case 83: // S
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.z -= movementSpeed * delta;
-            camera.position.z += 6;
+            camera.position.z += movementSpeed * delta;
             refreshVertices();
             break;
         case 68: // D
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.x -= movementSpeed * delta;
-            camera.position.x += 6;
+            camera.position.x += movementSpeed * delta;
             refreshVertices();
             break;
         case 70: // F
@@ -240,3 +216,75 @@ function keyHandler(e) {
     }
 }
 document.addEventListener('keydown', keyHandler);
+
+class LSystem {
+    constructor(axiom, rules, iterations) {
+        this.axiom = axiom;
+        this.rules = rules;
+        this.iterations = iterations;
+        this.result = axiom;
+    }
+
+    // Generate the L-system string
+    generate() {
+        let result = this.axiom;
+        for (let i = 0; i < this.iterations; i++) {
+            let nextResult = '';
+            for (let char of result) {
+                nextResult += this.rules[char] || char;
+            }
+            result = nextResult;
+        }
+        this.result = result;
+    }
+}
+
+// Tree generation
+class Tree {
+    constructor(axiom, rules, iterations, scale, angleIncrement, branchLength) {
+        this.lSystem = new LSystem(axiom, rules, iterations);
+        this.scale = scale;
+        this.angleIncrement = angleIncrement;
+        this.branchLength = branchLength;
+
+        this.lSystem.generate();
+    }
+
+    createBranch(scene, position, angle, length, depth = 0) {
+        if (depth > 5 || length < 1) return;
+
+        const branchGeometry = new THREE.CylinderGeometry(1, 1, length, 8);
+        const branchMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        const branch = new THREE.Mesh(branchGeometry, branchMaterial);
+        branch.position.set(position.x, position.y + length / 2, position.z);
+        branch.rotation.z = angle;
+        branch.castShadow = true;
+        scene.add(branch);
+
+        if (depth > 3 && length < 6) {
+            const leafGeometry = new THREE.SphereGeometry(3, 8, 8);
+            const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            const leaves = new THREE.Mesh(leafGeometry, leafMaterial);
+            leaves.position.set(position.x, position.y + length, position.z);
+            scene.add(leaves);
+        }
+
+        this.createBranch(scene, new THREE.Vector3(position.x, position.y + length, position.z), angle + this.angleIncrement, length * 0.7, depth + 1);
+        this.createBranch(scene, new THREE.Vector3(position.x, position.y + length, position.z), angle - this.angleIncrement, length * 0.7, depth + 1);
+    }
+
+    generateTree(scene) {
+        const initialPosition = new THREE.Vector3(0, 0, 0);
+        this.createBranch(scene, initialPosition, 0, this.branchLength, 0);
+    }
+}
+
+// Create a tree
+const axiom = "X";
+const rules = {
+   "X": "F+[[X]-X]-F[-FX]+X",
+   "F": "FF"
+};
+
+const tree = new Tree(axiom, rules, 5, 1, Math.PI / 6, 20);
+tree.generateTree(scene);
