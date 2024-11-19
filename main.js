@@ -60,7 +60,7 @@ function refreshVertices() {
 }
 
 // adds cursor dot (file path needs implementation)
-// document.body.style.cursor = "url('path'), auto";
+document.body.style.cursor = "url('./mousedot.png'), auto";
 
 
 // Lighting
