@@ -59,6 +59,10 @@ function refreshVertices() {
     terrain.geometry.computeVertexNormals();
 }
 
+// adds cursor dot (file path needs implementation)
+// document.body.style.cursor = "url('path'), auto";
+
+
 // Lighting
 // Create sunlight
 var sunlight = new THREE.DirectionalLight(Colors.DayColor, 1.5);
