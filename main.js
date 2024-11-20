@@ -10,13 +10,10 @@ const height = window.innerHeight;
 // Set up the scene, camera, and renderer
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(45, width / height, 1, 3000);
-var cameraTarget = { x: 0, y: 0, z: 0 };
 camera.position.y = 70;
 camera.position.z = 1000;
 camera.rotation.x = -15 * Math.PI / 180;
-// camera.position.set(0, -350, 200);
 camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
-// scene.add(camera);
 
 var renderer = new THREE.WebGLRenderer({ canvas: myCanvas, antialias: true, depth: true });
 renderer.shadowMap.enabled = true;
@@ -42,6 +39,7 @@ const texture = new THREE.TextureLoader().load('./grass.jpg');
 
 var material = new THREE.MeshLambertMaterial({ color: Colors.TerrainColor, map: texture });
 var terrain = new THREE.Mesh(geometry, material);
+terrain.name = "terrain";
 terrain.rotation.x = -Math.PI / 2;
 scene.add(terrain);
 
@@ -60,7 +58,7 @@ function refreshVertices() {
     terrain.geometry.computeVertexNormals();
 }
 
-// adds cursor dot (file path needs implementation)
+// adds cursor dot
 document.body.style.cursor = "url('./mousedot.png'), auto";
 
 
@@ -85,6 +83,7 @@ var sunGeometry = new THREE.SphereGeometry(50, 32, 32);
 var sunMaterial = new THREE.MeshBasicMaterial({ color: Colors.SunColor });
 var sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
 sunMesh.position.set(1000, 500, 1000); // Initial position for sun
+sunMesh.name = "sun";
 scene.add(sunMesh);
 
 // Add the moon light
@@ -97,6 +96,7 @@ var moonGeometry = new THREE.SphereGeometry(50, 32, 32);
 var moonMaterial = new THREE.MeshBasicMaterial({ color: Colors.MoonColor });
 var moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
 moonMesh.position.set(-1000, -500, -1000); // Initial position for moon
+moonMesh.name = "moon";
 scene.add(moonMesh);
 
 // Enable shadows for the terrain
@@ -150,19 +150,15 @@ function daylightCycle(delta) {
 
 // Raycasting and collision detection
 const raycaster = new THREE.Raycaster();
-// Create a point from the main camera looking straight
-const pointer = new THREE.Vector3(0, 0, 1);
+const pointer = new THREE.Vector2();
 
-// Cast a ray from the main camera to check for intersection with the objects
-raycaster.setFromCamera(pointer, camera);
+function onPointerMove(event) {
+    // calculate pointer position in normalized device coordinates
+    // (-1 to +1) for both components
 
-const intersects = raycaster.intersectObjects(scene.children, true);
-// Check each tree for collision with the player
-for (let i = 0; i < intersects.length; i++) {
-    if (intersects[i].distance > 0 && intersects[i].distance < 1) {
-        // TODO: Prevent the person from going further into the colliding object
-        break;
-    }
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
 }
 
 // Clock used to get the delta time
@@ -172,11 +168,30 @@ var delta = clock.getDelta();
 function update() {
     delta = clock.getDelta();
     controls.update(movementSpeed * delta);
-    // terrain.position.z += movementSpeed * delta;
-    // camera.position.z += movementSpeed * delta;
     refreshVertices();
-
     daylightCycle(delta);
+
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(scene.children);
+    // Check each tree for collision with the player
+    for (let i = 0; i < intersects.length; i++) {
+        if (intersects[i].distance > 0 && intersects[i].distance < 1) {
+            // TODO: Prevent the person from going further into the colliding object
+            if (object.name.match("tree")) {
+
+            }
+            break;
+        }
+        else if (intersects.length > 0) {
+            // Highlight the object
+            var object = intersects[0].object;
+            if (object.name.match("sun") || object.name.match("moon")) {
+                break; // do not highlight the sun or the moon
+            }
+            object.material.color.set(Math.random() * 0xffffff);
+            break;
+        }
+    }
 }
 
 function animate() {
@@ -188,6 +203,7 @@ function animate() {
 
 }
 animate();
+window.addEventListener('pointermove', onPointerMove);
 
 var headPosition = 0, increase = true;
 /**
