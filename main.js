@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import Colors from './colors.js';
 import { Perlin } from './perlin.js';
 import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 var width = window.innerWidth;
 var height = window.innerHeight;
@@ -164,7 +163,7 @@ function onPointerMove(event) {
 
 // Clock used to get the delta time
 var clock = new THREE.Clock();
-var movementSpeed = 60;
+var movementSpeed = 200;
 var delta = clock.getDelta();
 function update() {
     delta = clock.getDelta();
@@ -374,16 +373,30 @@ const rules1 = {
     "F": "FF",
 };
 
-const tree1 = new Tree(axiom, rules1, 4, 6, Math.PI / 6, 50);  
+const rules2 = {
+    "X": "F[+[>F[X]F+]<F",
+    "F": "FF"
+}
 
-function generateRandomTrees(scene, numTrees) {
+const rules3 = {
+    "X": "F>+[XF<[-]X>]+X",
+    "F": "FF"
+}
+
+const tree1 = new Tree(axiom, rules1, 4, 6, Math.PI / 6, 50);  
+const tree2 = new Tree(axiom, rules2, 4, 6, Math.PI / 6, 50);
+const tree3 = new Tree(axiom, rules3, 4, 6, Math.PI / 6, 50);
+
+function generateTrees(scene, numTrees, tree) {
     for (let i = 0; i < numTrees; i++) {
         const xPos = Math.random() * 1000 - 500;  
         const zPos = Math.random() * 1000 - 500;  
         const yPos = 50;  
 
-        tree1.generateTree(scene, new THREE.Vector3(xPos, yPos, zPos));  
+        tree.generateTree(scene, new THREE.Vector3(xPos, yPos, zPos)); 
     }
 }
 
-generateRandomTrees(scene, 10);
+generateTrees(scene, 5, tree1);
+generateTrees(scene, 5, tree2);
+generateTrees(scene, 5, tree3);
