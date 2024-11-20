@@ -225,13 +225,12 @@ class LSystem {
         this.result = axiom;
     }
 
-    // Generate the L-system string
     generate() {
         let result = this.axiom;
         for (let i = 0; i < this.iterations; i++) {
             let nextResult = '';
             for (let char of result) {
-                nextResult += this.rules[char] || char;
+                nextResult += this.rules[char] || char;  // Apply rules
             }
             result = nextResult;
         }
@@ -239,52 +238,128 @@ class LSystem {
     }
 }
 
-// Tree generation
 class Tree {
-    constructor(axiom, rules, iterations, scale, angleIncrement, branchLength) {
+    constructor(axiom, rules, iterations, branchLength, angleIncrement, leafIterationThreshold) {
         this.lSystem = new LSystem(axiom, rules, iterations);
-        this.scale = scale;
-        this.angleIncrement = angleIncrement;
         this.branchLength = branchLength;
+        this.angleIncrement = angleIncrement;
+        this.leafIterationThreshold = leafIterationThreshold; // New parameter for leaf threshold
 
+        // Generate the L-system string
         this.lSystem.generate();
     }
 
-    createBranch(scene, position, angle, length, depth = 0) {
-        if (depth > 5 || length < 1) return;
-
+    // Function to create a branch in 3D space
+    createBranch(scene, position, anglePitch, angleYaw, length) {
         const branchGeometry = new THREE.CylinderGeometry(1, 1, length, 8);
         const branchMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         const branch = new THREE.Mesh(branchGeometry, branchMaterial);
-        branch.position.set(position.x, position.y + length / 2, position.z);
-        branch.rotation.z = angle;
+
+        // Calculate the new position for the branch based on the angles
+        const branchDirection = new THREE.Vector3();
+        branchDirection.x = Math.sin(angleYaw) * Math.cos(anglePitch);
+        branchDirection.y = Math.sin(anglePitch);
+        branchDirection.z = Math.cos(angleYaw) * Math.cos(anglePitch);
+
+        const newPosition = position.clone().add(branchDirection.multiplyScalar(length));
+
+        // Set the position for the branch
+        branch.position.set(newPosition.x, newPosition.y + length / 2, newPosition.z);
+
+        // Calculate rotation: in 3D space, we need to rotate around both pitch and yaw axes
+        const direction = new THREE.Vector3(Math.sin(angleYaw) * Math.cos(anglePitch), Math.sin(anglePitch), Math.cos(angleYaw) * Math.cos(anglePitch));
+        const up = new THREE.Vector3(0, 1, 0);  // World 'up' direction in 3D
+        const axis = new THREE.Vector3().crossVectors(up, direction).normalize();
+        const angleToRotate = Math.acos(up.dot(direction));  // Angle to rotate around the axis
+
+        // Apply the rotation
+        branch.rotation.setFromRotationMatrix(new THREE.Matrix4().makeRotationAxis(axis, angleToRotate));
+
         branch.castShadow = true;
         scene.add(branch);
 
-        if (depth > 3 && length < 6) {
-            const leafGeometry = new THREE.SphereGeometry(3, 8, 8);
-            const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-            const leaves = new THREE.Mesh(leafGeometry, leafMaterial);
-            leaves.position.set(position.x, position.y + length, position.z);
-            scene.add(leaves);
-        }
-
-        this.createBranch(scene, new THREE.Vector3(position.x, position.y + length, position.z), angle + this.angleIncrement, length * 0.7, depth + 1);
-        this.createBranch(scene, new THREE.Vector3(position.x, position.y + length, position.z), angle - this.angleIncrement, length * 0.7, depth + 1);
+        return newPosition; // Return the new position for the next branch
     }
 
-    generateTree(scene) {
-        const initialPosition = new THREE.Vector3(0, 0, 0);
-        this.createBranch(scene, initialPosition, 0, this.branchLength, 0);
+    // Function to create leaves at the end of a branch
+    createLeaf(scene, position) {
+        const leafGeometry = new THREE.SphereGeometry(6, 8, 8);  // Simple spherical leaf shape
+        const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 }); // Green color for the leaves
+        const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+
+        // Position the leaf at the tip of the branch
+        leaf.position.set(position.x, position.y, position.z);
+        leaf.castShadow = true;
+        scene.add(leaf);
+    }
+
+    generateTree(scene, position) {
+        const stack = [];  // Stack to save the state (position, anglePitch, angleYaw)
+    
+        // Initialize the angles for the first branch
+        let anglePitch = Math.PI / 2;  // Start pointing straight up (vertical)
+        let angleYaw = 0;  // Start facing forward (along the positive Z-axis)
+        let iterationCount = 0;  // Count the iterations
+
+        // Iterate through the L-System string
+        for (let char of this.lSystem.result) {
+            if (char === 'F') {
+                // Create a branch by moving forward and getting the new position
+                position = this.createBranch(scene, position, anglePitch, angleYaw, this.branchLength);
+
+                // Create a leaf only if the iteration count is above the threshold
+                if (iterationCount >= this.leafIterationThreshold) {
+                    this.createLeaf(scene, position);
+                }
+            } else if (char === '+') {
+                // Turn clockwise by angleIncrement (yaw)
+                angleYaw -= this.angleIncrement;
+            } else if (char === '-') {
+                // Turn counterclockwise by angleIncrement (yaw)
+                angleYaw += this.angleIncrement;
+            } else if (char === '<') {
+                // Tilt downward (pitch)
+                anglePitch -= this.angleIncrement;
+            } else if (char === '>') {
+                // Tilt upward (pitch)
+                anglePitch += this.angleIncrement;
+            } else if (char === '[') {
+                // Save current state (position, anglePitch, angleYaw) to stack
+                stack.push({ position: position.clone(), anglePitch: anglePitch, angleYaw: angleYaw });
+            } else if (char === ']') {
+                // Restore previous state (position, anglePitch, angleYaw) from stack
+                const state = stack.pop();
+                position = state.position;
+                anglePitch = state.anglePitch;
+                angleYaw = state.angleYaw;
+            }
+
+            // Increment the iteration count after processing each character
+            iterationCount++;
+        }
+    }    
+}
+
+// Example L-System rules and setup
+const axiom = "X";
+const rules1 = {
+    "X": "F<[-[+X>]>-F>]+[<X+]>X",
+    "F": "FF",
+};
+
+// Create a Tree instance, passing a threshold for when leaves should appear
+const tree1 = new Tree(axiom, rules1, 4, 6, Math.PI / 6, 50);  // Leaves only after 10 iterations
+
+// Function to generate trees at random positions on the terrain
+function generateRandomTrees(scene, numTrees) {
+    for (let i = 0; i < numTrees; i++) {
+        const xPos = Math.random() * 1000 - 500;  // Random X position
+        const zPos = Math.random() * 1000 - 500;  // Random Z position
+        const yPos = 50;  // Assuming flat ground for now
+
+        tree1.generateTree(scene, new THREE.Vector3(xPos, yPos, zPos));  // Generate the tree at the random position
     }
 }
 
-// Create a tree
-const axiom = "X";
-const rules = {
-   "X": "F+[[X]-X]-F[-FX]+X",
-   "F": "FF"
-};
 
-const tree = new Tree(axiom, rules, 5, 1, Math.PI / 6, 20);
-tree.generateTree(scene);
+generateRandomTrees(scene, 10);
