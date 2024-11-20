@@ -189,7 +189,7 @@ function update() {
             if (object.name.match("sun") || object.name.match("moon")) {
                 break; // do not highlight the sun or the moon
             }
-            object.material.color.set(Math.random() * 0xffffff);
+            // object.material.color.set(Math.random() * 0xffffff);
             break;
         }
     }
