@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import Colors from './colors.js';
 import { Perlin } from './perlin.js';
+import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 var width = window.innerWidth;
@@ -13,9 +14,7 @@ var cameraTarget = { x: 0, y: 0, z: 0 };
 camera.position.y = 70;
 camera.position.z = 1000;
 camera.rotation.x = -15 * Math.PI / 180;
-// camera.position.set(0, -350, 200);
 camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
-// scene.add(camera);
 
 var renderer = new THREE.WebGLRenderer({ canvas: myCanvas, antialias: true, depth: true });
 renderer.shadowMap.enabled = true;
@@ -24,7 +23,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(width, height);
 document.body.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
+const controls = new FirstPersonControls(camera, renderer.domElement);
 
 var stats = new Stats();
 stats.showPanel(0);
@@ -41,11 +40,12 @@ const texture = new THREE.TextureLoader().load('./grass.jpg');
 
 var material = new THREE.MeshLambertMaterial({ color: Colors.TerrainColor, map: texture });
 var terrain = new THREE.Mesh(geometry, material);
+terrain.name = "terrain";
 terrain.rotation.x = -Math.PI / 2;
 scene.add(terrain);
 
 var perlin = new Perlin();
-var peak = 60;
+var peak = 30;
 var smoothing = 300;
 function refreshVertices() {
     var vertices = terrain.geometry.attributes.position.array;
@@ -59,7 +59,7 @@ function refreshVertices() {
     terrain.geometry.computeVertexNormals();
 }
 
-// adds cursor dot (file path needs implementation)
+// adds cursor dot
 document.body.style.cursor = "url('./mousedot.png'), auto";
 
 
@@ -84,6 +84,7 @@ var sunGeometry = new THREE.SphereGeometry(50, 32, 32);
 var sunMaterial = new THREE.MeshBasicMaterial({ color: Colors.SunColor });
 var sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
 sunMesh.position.set(1000, 500, 1000); // Initial position for sun
+sunMesh.name = "sun";
 scene.add(sunMesh);
 
 // Add the moon light
@@ -96,6 +97,7 @@ var moonGeometry = new THREE.SphereGeometry(50, 32, 32);
 var moonMaterial = new THREE.MeshBasicMaterial({ color: Colors.MoonColor });
 var moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
 moonMesh.position.set(-1000, -500, -1000); // Initial position for moon
+moonMesh.name = "moon";
 scene.add(moonMesh);
 
 // Enable shadows for the terrain
@@ -149,19 +151,15 @@ function daylightCycle(delta) {
 
 // Raycasting and collision detection
 const raycaster = new THREE.Raycaster();
-// Create a point from the main camera looking straight
-const pointer = new THREE.Vector3(0, 0, 1);
+const pointer = new THREE.Vector2();
 
-// Cast a ray from the main camera to check for intersection with the objects
-raycaster.setFromCamera(pointer, camera);
+function onPointerMove(event) {
+    // calculate pointer position in normalized device coordinates
+    // (-1 to +1) for both components
 
-const intersects = raycaster.intersectObjects(scene.children, true);
-// Check each tree for collision with the player
-for (let i = 0; i < intersects.length; i++) {
-    if (intersects[i].distance > 0 && intersects[i].distance < 1) {
-        // TODO: Prevent the person from going further into the colliding object
-        break;
-    }
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
 }
 
 // Clock used to get the delta time
@@ -170,11 +168,31 @@ var movementSpeed = 60;
 var delta = clock.getDelta();
 function update() {
     delta = clock.getDelta();
-    // terrain.position.z += movementSpeed * delta;
-    // camera.position.z += movementSpeed * delta;
+    controls.update(movementSpeed * delta);
     refreshVertices();
-
     daylightCycle(delta);
+
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(scene.children);
+    // Check each tree for collision with the player
+    for (let i = 0; i < intersects.length; i++) {
+        if (intersects[i].distance > 0 && intersects[i].distance < 1) {
+            // TODO: Prevent the person from going further into the colliding object
+            if (object.name.match("tree")) {
+
+            }
+            break;
+        }
+        else if (intersects.length > 0) {
+            // Highlight the object
+            var object = intersects[0].object;
+            if (object.name.match("sun") || object.name.match("moon")) {
+                break; // do not highlight the sun or the moon
+            }
+            // object.material.color.set(Math.random() * 0xffffff);
+            break;
+        }
+    }
 }
 
 function animate() {
@@ -186,6 +204,30 @@ function animate() {
 
 }
 animate();
+window.addEventListener('pointermove', onPointerMove);
+
+var headPosition = 0, increase = true;
+/**
+ * Head bobbing code to move the camera look at up and down (bonus)
+ */
+function headBob() {
+    if (increase) {
+        if (headPosition <= 100) {
+            headPosition += 20;
+        } else {
+            increase = false;
+            headPosition += 20;
+        }
+    } else {
+        if (headPosition >= -100) {
+            headPosition -= 20;
+        } else {
+            increase = true;
+            headPosition += 20;
+        }
+    }
+    camera.lookAt(new THREE.Vector3(0.0, 0.0, headPosition));
+}
 
 // Set up the keyboard controls:
 function keyHandler(e) {
