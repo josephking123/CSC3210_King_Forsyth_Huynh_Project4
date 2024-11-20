@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import Colors from './colors.js';
 import { Perlin } from './perlin.js';
+import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const width = window.innerWidth;
@@ -24,7 +25,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(width, height);
 document.body.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
+const controls = new FirstPersonControls(camera, renderer.domElement);
 
 var stats = new Stats();
 stats.showPanel(0);
@@ -170,6 +171,7 @@ var movementSpeed = 60;
 var delta = clock.getDelta();
 function update() {
     delta = clock.getDelta();
+    controls.update(movementSpeed * delta);
     // terrain.position.z += movementSpeed * delta;
     // camera.position.z += movementSpeed * delta;
     refreshVertices();
