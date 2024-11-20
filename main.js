@@ -3,12 +3,12 @@ import Colors from './colors.js';
 import { Perlin } from './perlin.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const width = window.innerWidth;
-const height = window.innerHeight;
+var width = window.innerWidth;
+var height = window.innerHeight;
 
 // Set up the scene, camera, and renderer
 var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera(45, width / height, 1, 3000);
+var camera = new THREE.PerspectiveCamera(45, width / height, 1, 5000);
 var cameraTarget = { x: 0, y: 0, z: 0 };
 camera.position.y = 70;
 camera.position.z = 1000;
@@ -48,8 +48,8 @@ var perlin = new Perlin();
 var peak = 60;
 var smoothing = 300;
 function refreshVertices() {
-    let vertices = terrain.geometry.attributes.position.array;
-    for (let i = 0; i <= vertices.length; i += 3) {
+    var vertices = terrain.geometry.attributes.position.array;
+    for (var i = 0; i <= vertices.length; i += 3) {
         vertices[i + 2] = peak * perlin.noise(
             (terrain.position.x + vertices[i]) / smoothing,
             (terrain.position.z + vertices[i + 1]) / smoothing
@@ -116,7 +116,7 @@ function updateSkyColor() {
         blendFactor = Math.max(0, Math.min(1, (sunHeight + 500) / 500));
         scene.background = new THREE.Color(Colors.DawnDuskColor).clone().lerp(new THREE.Color(Colors.NightColor), 1 - blendFactor);
     }
-
+    
 }
 const cycleSpeed = (Math.PI / 12) / 10; // Speed of day-night cycle, 15 degrees (pi/12 radians) every 10 seconds
 
@@ -187,55 +187,31 @@ function animate() {
 }
 animate();
 
-var headPosition = 0, increase = true;
-/**
- * Head bobbing code to move the camera look at up and down (bonus)
- */
-function headBob() {
-    if (increase) {
-        if (headPosition <= 100) {
-            headPosition += 20;
-        } else {
-            increase = false;
-            headPosition += 20;
-        }
-    } else {
-        if (headPosition >= -100) {
-            headPosition -= 20;
-        } else {
-            increase = true;
-            headPosition += 20;
-        }
-    }
-    camera.lookAt(new THREE.Vector3(0.0, 0.0, headPosition));
-}
-
 // Set up the keyboard controls:
 function keyHandler(e) {
     switch (e.keyCode) {
         case 87: // W
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.z += movementSpeed * delta;
-            camera.position.z -= 6;
-            headBob();
+            camera.position.z -= movementSpeed * delta;
             refreshVertices();
             break;
         case 65: // A
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.x += movementSpeed * delta;
-            camera.position.x -= 6;
+            camera.position.x -= movementSpeed * delta;
             refreshVertices();
             break;
         case 83: // S
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.z -= movementSpeed * delta;
-            camera.position.z += 6;
+            camera.position.z += movementSpeed * delta;
             refreshVertices();
             break;
         case 68: // D
-            // delta = clock.getDelta();
+            delta = clock.getDelta();
             // terrain.position.x -= movementSpeed * delta;
-            camera.position.x += 6;
+            camera.position.x += movementSpeed * delta;
             refreshVertices();
             break;
         case 70: // F
@@ -244,3 +220,128 @@ function keyHandler(e) {
     }
 }
 document.addEventListener('keydown', keyHandler);
+
+class LSystem {
+    constructor(axiom, rules, iterations) {
+        this.axiom = axiom;
+        this.rules = rules;
+        this.iterations = iterations;
+        this.result = axiom;
+    }
+
+    generate() {
+        let result = this.axiom;
+        for (let i = 0; i < this.iterations; i++) {
+            let nextResult = '';
+            for (let char of result) {
+                nextResult += this.rules[char] || char;  
+            }
+            result = nextResult;
+        }
+        this.result = result;
+    }
+}
+
+class Tree {
+    constructor(axiom, rules, iterations, branchLength, angleIncrement, leafIterationThreshold) {
+        this.lSystem = new LSystem(axiom, rules, iterations);
+        this.branchLength = branchLength;
+        this.angleIncrement = angleIncrement;
+        this.leafIterationThreshold = leafIterationThreshold; 
+
+        // Generate the L-system string
+        this.lSystem.generate();
+    }
+
+    createBranch(scene, position, anglePitch, angleYaw, length) {
+        const branchGeometry = new THREE.CylinderGeometry(1, 1, length, 8);
+        const branchMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        const branch = new THREE.Mesh(branchGeometry, branchMaterial);
+
+        const branchDirection = new THREE.Vector3();
+        branchDirection.x = Math.sin(angleYaw) * Math.cos(anglePitch);
+        branchDirection.y = Math.sin(anglePitch);
+        branchDirection.z = Math.cos(angleYaw) * Math.cos(anglePitch);
+
+        const newPosition = position.clone().add(branchDirection.multiplyScalar(length));
+
+        branch.position.set(newPosition.x, newPosition.y + length / 2, newPosition.z);
+
+        const direction = new THREE.Vector3(Math.sin(angleYaw) * Math.cos(anglePitch), Math.sin(anglePitch), Math.cos(angleYaw) * Math.cos(anglePitch));
+        const up = new THREE.Vector3(0, 1, 0);  
+        const axis = new THREE.Vector3().crossVectors(up, direction).normalize();
+        const angleToRotate = Math.acos(up.dot(direction));  
+
+        branch.rotation.setFromRotationMatrix(new THREE.Matrix4().makeRotationAxis(axis, angleToRotate));
+
+        branch.castShadow = true;
+        scene.add(branch);
+
+        return newPosition; 
+    }
+
+    createLeaf(scene, position) {
+        const leafGeometry = new THREE.SphereGeometry(6, 8, 8);  
+        const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 }); 
+        const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+
+        leaf.position.set(position.x, position.y, position.z);
+        leaf.castShadow = true;
+        scene.add(leaf);
+    }
+
+    generateTree(scene, position) {
+        const stack = [];  
+    
+        let anglePitch = Math.PI / 2;  
+        let angleYaw = 0;  
+        let iterationCount = 0;  
+
+        for (let char of this.lSystem.result) {
+            if (char === 'F') {
+                position = this.createBranch(scene, position, anglePitch, angleYaw, this.branchLength);
+
+                if (iterationCount >= this.leafIterationThreshold) {
+                    this.createLeaf(scene, position);
+                }
+            } else if (char === '+') {
+                angleYaw -= this.angleIncrement;
+            } else if (char === '-') {
+                angleYaw += this.angleIncrement;
+            } else if (char === '<') {
+                anglePitch -= this.angleIncrement;
+            } else if (char === '>') {
+                anglePitch += this.angleIncrement;
+            } else if (char === '[') {
+                stack.push({ position: position.clone(), anglePitch: anglePitch, angleYaw: angleYaw });
+            } else if (char === ']') {
+                const state = stack.pop();
+                position = state.position;
+                anglePitch = state.anglePitch;
+                angleYaw = state.angleYaw;
+            }
+
+            iterationCount++;
+        }
+    }    
+}
+
+const axiom = "X";
+const rules1 = {
+    "X": "F<[-[+X>]>-F>]+[<X+]>X",
+    "F": "FF",
+};
+
+const tree1 = new Tree(axiom, rules1, 4, 6, Math.PI / 6, 50);  
+
+function generateRandomTrees(scene, numTrees) {
+    for (let i = 0; i < numTrees; i++) {
+        const xPos = Math.random() * 1000 - 500;  
+        const zPos = Math.random() * 1000 - 500;  
+        const yPos = 50;  
+
+        tree1.generateTree(scene, new THREE.Vector3(xPos, yPos, zPos));  
+    }
+}
+
+generateRandomTrees(scene, 10);
