@@ -151,6 +151,9 @@ function daylightCycle(delta) {
 // Raycasting and collision detection
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector3();
+let highlightedObject = null;  // Keep track of the currently highlighted object
+// Highlight material
+const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, opacity: 0.5, transparent: true });  
 
 // Clock used to get the delta time
 var clock = new THREE.Clock();
@@ -166,33 +169,65 @@ function update() {
     daylightCycle(delta);
 
     // Raycasting
-    // raycaster.set(camera.position, pointer);
     raycaster.setFromCamera(pointer, camera);
     const intersects = raycaster.intersectObjects(scene.children, true);
+    let intersectedObject = null;
 
     // Check each tree for collision with the player
     for (let i = 0; i < intersects.length; i++) {
-        var object = intersects[0].object;
+        // Get the intersected object
+        intersectedObject = intersects[i].object;
         if (intersects[i].distance > 0 && intersects[i].distance < 10) {
             // Prevent the person from going further into the colliding object
-            if (object.name.match("branch") || object.name.match("leaf")) {
+            if (intersectedObject.name.match("branch") || intersectedObject.name.match("leaf")) {
                 collision = true;
             }
             break;
+            
         }
         else if (intersects.length > 0 && intersects[i].distance < 600) {
             collision = false;
             // Highlight the object
-
-            if (object.name.match("sun") || object.name.match("moon")) {
+            if (intersectedObject.name.match("sun") || intersectedObject.name.match("moon")) {
+                intersectedObject = null;
                 break; // do not highlight the sun or the moon
             }
-            // object.material.color.set(Math.random() * 0xffffff);
-            break;
+            if (intersectedObject.name.match("branch") || intersectedObject.name.match("leaf")) {
+                // Apply highlight to the intersected object
+            if (highlightedObject !== intersectedObject) {
+                // Remove highlight from the previous object
+                if (highlightedObject) {
+                    resetHighlight(highlightedObject);
+                }
+                // Apply new highlight
+                applyHighlight(intersectedObject);
+                highlightedObject = intersectedObject;  // Update the tracked highlighted object
+            }
+            }
+            break;  // Stop processing further intersections after highlighting
         }
         else {
             collision = false;
         }
+    }
+}
+
+// Apply highlight effect to the object
+function applyHighlight(object) {
+    if (!object.userData.originalMaterial) {
+        // Save the original material to revert back later
+        object.userData.originalMaterial = object.material;
+    }
+    // Change the material to the highlight material
+    object.material = highlightMaterial;
+}
+
+// Reset the highlight effect
+function resetHighlight(object) {
+    if (object.userData.originalMaterial) {
+        // Revert back to the original material
+        object.material = object.userData.originalMaterial;
+        delete object.userData.originalMaterial;
     }
 }
 
@@ -228,12 +263,6 @@ function headBob() {
     }
     camera.lookAt(new THREE.Vector3(0.0, 0.0, headPosition));
 }
-// Lock the pointer when the user clicks on the canvas
-document.body.addEventListener('click', () => {
-    if (!document.pointerLockElement) {
-        renderer.domElement.requestPointerLock();
-    }
-});
 
 // Set up the keyboard controls:
 function keyHandler(e) {
@@ -267,9 +296,6 @@ function keyHandler(e) {
             break;
         case 70: // F
             // Toggle the flashlight
-            break;
-        case 27: // Escape
-            document.exitPointerLock(); // Unlock mouse cursor
             break;
     }
 }
