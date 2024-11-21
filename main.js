@@ -220,6 +220,33 @@ function updateCamera() {
     }
 }
 
+renderer.domElement.addEventListener('click', onClick, false);
+
+
+// remove leaves/branches when clicked
+function onClick(event) {
+    
+    // calculate pointer position
+    pointer.x = (event.clientX / width) * 2 - 1;
+    pointer.y = -(event.clientY / height) * 2 + 1;
+
+    // raycast from the camera to the pointer
+    raycaster.setFromCamera(pointer, camera);
+
+    // get the first object that intersects with the ray
+    const intersects = raycaster.intersectObjects(scene.children, true);
+
+    if (intersects.length > 0) {``
+        const clickedObject = intersects[0].object;
+
+        // handle interactions for leaves and branches
+        if (clickedObject.name.match("leaf") || clickedObject.name.match("branch")) {
+            // remove the object from the scene
+            scene.remove(clickedObject);
+        } 
+    }
+}
+
 
 // Update the terrain for each animation
 function update() {
