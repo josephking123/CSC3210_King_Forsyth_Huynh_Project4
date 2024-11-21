@@ -59,8 +59,12 @@ function refreshVertices() {
     terrain.geometry.computeVertexNormals();
 }
 
-// adds cursor dot
-document.body.style.cursor = "url('./mousedot.png'), auto";
+const centerDot = document.createElement('div');
+centerDot.id = 'centerDot';
+document.body.appendChild(centerDot);
+
+// remove the default cursor
+document.body.style.cursor = 'none';
 
 
 // Lighting

@@ -9,6 +9,18 @@
             cursor: 'mousedot.png',
             default !important;
         }
+
+        #centerDot {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            background: url('./mousedot.png') no-repeat center;
+            transform: translate(-50%, -50%);
+            pointer-events: none; /* prevent interaction with the dot */
+            z-index: 9999; /* ensure the dot stays on top */
+        }
         .customCursor {
             cursor: url(mousedot.png),
             default !important;
