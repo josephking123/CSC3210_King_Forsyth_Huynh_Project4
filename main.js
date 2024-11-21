@@ -165,12 +165,71 @@ var movementSpeed = 200;
 var delta = clock.getDelta();
 var collision = false;
 
+// variables to store mouse movement
+let mouseMoving = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+
+// setup pointer lock
+const canvas = renderer.domElement;
+
+canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
+document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock || document.webkitExitPointerLock;
+
+canvas.addEventListener('click', () => {
+    canvas.requestPointerLock();
+});    
+
+// listen for pointer lock changes
+document.addEventListener('pointerlockchange', lockChangeAlert, false);
+document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
+document.addEventListener('webkitpointerlockchange', lockChangeAlert, false);
+
+function lockChangeAlert(){ 
+    if (document.pointerLockElement === canvas || 
+        document.mozPointerLockElement === canvas ||
+        document.webkitPointerLockELement === canvas) {
+            console.log('pointer locked');
+            document.addEventListener('mousemove', onMouseMove, false);
+    } else {
+        console.log('pointer unlocked');
+        document.removeEventListener('mousemove', onMouseMove, false);
+    }
+}
+
+function onMouseMove(event) {
+    mouseMoving = true;
+    lastMouseX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+    lastMouseY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+}
+
+// custom update for the camera movement
+function updateCamera() {
+    if (mouseMoving) {
+        // update camera rotation based on mouse movement
+        const lookSpeed = 0.001;
+
+        camera.rotation.y -= lastMouseX * lookSpeed;
+        camera.rotation.x -= lastMouseY * lookSpeed;
+
+        // clamp the x rotation to prevent camera flipping
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+
+        // reset movement flag
+        mouseMoving = false;
+    }
+}
+
+
 // Update the terrain for each animation
 function update() {
     delta = clock.getDelta();
-    controls.update(delta);
     refreshVertices();
     daylightCycle(delta);
+
+    // custom camera update for mouse movement
+    updateCamera();
+
 
     // Raycasting
     raycaster.setFromCamera(pointer, camera);
@@ -215,6 +274,13 @@ function update() {
         }
     }
 }
+
+document.addEventListener('keydown', (event) => {
+    if(event.key === 'Escape') {
+        document.exitPointerLock();
+    }
+});
+
 
 // Apply highlight effect to the object
 function applyHighlight(object) {
