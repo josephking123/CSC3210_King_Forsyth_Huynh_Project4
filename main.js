@@ -44,7 +44,7 @@ terrain.rotation.x = -Math.PI / 2;
 scene.add(terrain);
 
 var perlin = new Perlin();
-var peak = 30;
+var peak = 20;
 var smoothing = 300;
 function refreshVertices() {
     var vertices = terrain.geometry.attributes.position.array;
@@ -435,6 +435,9 @@ class Tree {
         const branchMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         const branch = new THREE.Mesh(branchGeometry, branchMaterial);
 
+        branch.castShadow = true; 
+        branch.receiveShadow = false;
+
         const branchDirection = new THREE.Vector3();
         branchDirection.x = Math.sin(angleYaw) * Math.cos(anglePitch);
         branchDirection.y = Math.sin(anglePitch);
@@ -462,6 +465,9 @@ class Tree {
         const leafGeometry = new THREE.SphereGeometry(6, 8, 8);
         const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
         const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+
+        leaf.castShadow = true;  
+        leaf.receiveShadow = false;
 
         leaf.position.set(position.x, position.y, position.z);
         leaf.castShadow = true;
@@ -517,7 +523,7 @@ const rules2 = {
 }
 
 const rules3 = {
-    "X": "F>+[XF<[-]X>]+X",
+    "X": "F>+[XF<[-]X>]+",
     "F": "FF"
 }
 
@@ -529,7 +535,7 @@ function generateTrees(scene, numTrees, tree) {
     for (let i = 0; i < numTrees; i++) {
         const xPos = Math.random() * 1000 - 500;
         const zPos = Math.random() * 1000 - 500;
-        const yPos = 50;
+        const yPos = 0;
 
         tree.generateTree(scene, new THREE.Vector3(xPos, yPos, zPos));
     }
