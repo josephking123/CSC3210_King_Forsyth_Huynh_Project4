@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import Colors from './colors.js';
 import { Perlin } from './perlin.js';
 import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 var width = window.innerWidth;
 var height = window.innerHeight;
@@ -10,7 +9,6 @@ var height = window.innerHeight;
 // Set up the scene, camera, and renderer
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(45, width / height, 1, 5000);
-var cameraTarget = { x: 0, y: 0, z: 0 };
 camera.position.y = 70;
 camera.position.z = 1000;
 camera.rotation.x = -15 * Math.PI / 180;
@@ -24,6 +22,7 @@ renderer.setSize(width, height);
 document.body.appendChild(renderer.domElement);
 
 const controls = new FirstPersonControls(camera, renderer.domElement);
+controls.lookSpeed = 0.1;
 
 var stats = new Stats();
 stats.showPanel(0);
@@ -122,7 +121,7 @@ function updateSkyColor() {
         blendFactor = Math.max(0, Math.min(1, (sunHeight + 500) / 500));
         scene.background = new THREE.Color(Colors.DawnDuskColor).clone().lerp(new THREE.Color(Colors.NightColor), 1 - blendFactor);
     }
-    
+
 }
 const cycleSpeed = (Math.PI / 12) / 10; // Speed of day-night cycle, 15 degrees (pi/12 radians) every 10 seconds
 
@@ -155,47 +154,84 @@ function daylightCycle(delta) {
 
 // Raycasting and collision detection
 const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-
-function onPointerMove(event) {
-    // calculate pointer position in normalized device coordinates
-    // (-1 to +1) for both components
-
-    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-}
+const pointer = new THREE.Vector3();
+let highlightedObject = null;  // Keep track of the currently highlighted object
+// Highlight material
+const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, opacity: 0.5, transparent: true });  
 
 // Clock used to get the delta time
 var clock = new THREE.Clock();
-var movementSpeed = 60;
+var movementSpeed = 200;
 var delta = clock.getDelta();
+var collision = false;
+
+// Update the terrain for each animation
 function update() {
     delta = clock.getDelta();
-    controls.update(movementSpeed * delta);
+    controls.update(delta);
     refreshVertices();
     daylightCycle(delta);
 
+    // Raycasting
     raycaster.setFromCamera(pointer, camera);
-    const intersects = raycaster.intersectObjects(scene.children);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    let intersectedObject = null;
+
     // Check each tree for collision with the player
     for (let i = 0; i < intersects.length; i++) {
-        if (intersects[i].distance > 0 && intersects[i].distance < 1) {
-            // TODO: Prevent the person from going further into the colliding object
-            if (object.name.match("tree")) {
-
+        // Get the intersected object
+        intersectedObject = intersects[i].object;
+        if (intersects[i].distance > 0 && intersects[i].distance < 10) {
+            // Prevent the person from going further into the colliding object
+            if (intersectedObject.name.match("branch") || intersectedObject.name.match("leaf")) {
+                collision = true;
             }
             break;
+            
         }
-        else if (intersects.length > 0) {
+        else if (intersects.length > 0 && intersects[i].distance < 600) {
+            collision = false;
             // Highlight the object
-            var object = intersects[0].object;
-            if (object.name.match("sun") || object.name.match("moon")) {
+            if (intersectedObject.name.match("sun") || intersectedObject.name.match("moon")) {
+                intersectedObject = null;
                 break; // do not highlight the sun or the moon
             }
-            // object.material.color.set(Math.random() * 0xffffff);
-            break;
+            if (intersectedObject.name.match("branch") || intersectedObject.name.match("leaf")) {
+                // Apply highlight to the intersected object
+            if (highlightedObject !== intersectedObject) {
+                // Remove highlight from the previous object
+                if (highlightedObject) {
+                    resetHighlight(highlightedObject);
+                }
+                // Apply new highlight
+                applyHighlight(intersectedObject);
+                highlightedObject = intersectedObject;  // Update the tracked highlighted object
+            }
+            }
+            break;  // Stop processing further intersections after highlighting
         }
+        else {
+            collision = false;
+        }
+    }
+}
+
+// Apply highlight effect to the object
+function applyHighlight(object) {
+    if (!object.userData.originalMaterial) {
+        // Save the original material to revert back later
+        object.userData.originalMaterial = object.material;
+    }
+    // Change the material to the highlight material
+    object.material = highlightMaterial;
+}
+
+// Reset the highlight effect
+function resetHighlight(object) {
+    if (object.userData.originalMaterial) {
+        // Revert back to the original material
+        object.material = object.userData.originalMaterial;
+        delete object.userData.originalMaterial;
     }
 }
 
@@ -208,7 +244,6 @@ function animate() {
 
 }
 animate();
-window.addEventListener('pointermove', onPointerMove);
 
 var headPosition = 0, increase = true;
 /**
@@ -235,30 +270,33 @@ function headBob() {
 
 // Set up the keyboard controls:
 function keyHandler(e) {
+    clock.getDelta();
+    // Get the camera's forward direction
+    const cameraDirection = new THREE.Vector3();
+    camera.getWorldDirection(cameraDirection);
+
+    // Get the camera's right direction (to strafe left/right)
+    const cameraRight = new THREE.Vector3();
+    camera.getWorldDirection(cameraRight);
+    cameraRight.cross(new THREE.Vector3(0, 1, 0));  // Get the right direction by crossing with up vector
+
+    const moveDistance = movementSpeed * delta;
     switch (e.keyCode) {
         case 87: // W
-            delta = clock.getDelta();
-            // terrain.position.z += movementSpeed * delta;
-            camera.position.z -= movementSpeed * delta;
-            refreshVertices();
+            // Move forward along camera direction
+            if (!collision) {
+                camera.position.add(cameraDirection.multiplyScalar(moveDistance));
+            }
             break;
         case 65: // A
-            delta = clock.getDelta();
-            // terrain.position.x += movementSpeed * delta;
-            camera.position.x -= movementSpeed * delta;
-            refreshVertices();
+            camera.position.add(cameraRight.multiplyScalar(-moveDistance));
             break;
         case 83: // S
-            delta = clock.getDelta();
-            // terrain.position.z -= movementSpeed * delta;
-            camera.position.z += movementSpeed * delta;
-            refreshVertices();
+            // Move the player backward (opposite of camera direction)
+            camera.position.add(cameraDirection.multiplyScalar(-moveDistance));
             break;
         case 68: // D
-            delta = clock.getDelta();
-            // terrain.position.x -= movementSpeed * delta;
-            camera.position.x += movementSpeed * delta;
-            refreshVertices();
+            camera.position.add(cameraRight.multiplyScalar(moveDistance));
             break;
         case 70: // F
             // Toggle the flashlight
@@ -280,7 +318,7 @@ class LSystem {
         for (let i = 0; i < this.iterations; i++) {
             let nextResult = '';
             for (let char of result) {
-                nextResult += this.rules[char] || char;  
+                nextResult += this.rules[char] || char;
             }
             result = nextResult;
         }
@@ -293,7 +331,7 @@ class Tree {
         this.lSystem = new LSystem(axiom, rules, iterations);
         this.branchLength = branchLength;
         this.angleIncrement = angleIncrement;
-        this.leafIterationThreshold = leafIterationThreshold; 
+        this.leafIterationThreshold = leafIterationThreshold;
 
         // Generate the L-system string
         this.lSystem.generate();
@@ -314,34 +352,36 @@ class Tree {
         branch.position.set(newPosition.x, newPosition.y + length / 2, newPosition.z);
 
         const direction = new THREE.Vector3(Math.sin(angleYaw) * Math.cos(anglePitch), Math.sin(anglePitch), Math.cos(angleYaw) * Math.cos(anglePitch));
-        const up = new THREE.Vector3(0, 1, 0);  
+        const up = new THREE.Vector3(0, 1, 0);
         const axis = new THREE.Vector3().crossVectors(up, direction).normalize();
-        const angleToRotate = Math.acos(up.dot(direction));  
+        const angleToRotate = Math.acos(up.dot(direction));
 
         branch.rotation.setFromRotationMatrix(new THREE.Matrix4().makeRotationAxis(axis, angleToRotate));
 
         branch.castShadow = true;
+        branch.name = "branch";
         scene.add(branch);
 
-        return newPosition; 
+        return newPosition;
     }
 
     createLeaf(scene, position) {
-        const leafGeometry = new THREE.SphereGeometry(6, 8, 8);  
-        const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 }); 
+        const leafGeometry = new THREE.SphereGeometry(6, 8, 8);
+        const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
         const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
 
         leaf.position.set(position.x, position.y, position.z);
         leaf.castShadow = true;
+        leaf.name = "leaf";
         scene.add(leaf);
     }
 
     generateTree(scene, position) {
-        const stack = [];  
-    
-        let anglePitch = Math.PI / 2;  
-        let angleYaw = 0;  
-        let iterationCount = 0;  
+        const stack = [];
+
+        let anglePitch = Math.PI / 2;
+        let angleYaw = 0;
+        let iterationCount = 0;
 
         for (let char of this.lSystem.result) {
             if (char === 'F') {
@@ -369,7 +409,7 @@ class Tree {
 
             iterationCount++;
         }
-    }    
+    }
 }
 
 const axiom = "X";
@@ -378,16 +418,30 @@ const rules1 = {
     "F": "FF",
 };
 
-const tree1 = new Tree(axiom, rules1, 4, 6, Math.PI / 6, 50);  
+const rules2 = {
+    "X": "F[+[>F[X]F+]<F",
+    "F": "FF"
+}
 
-function generateRandomTrees(scene, numTrees) {
+const rules3 = {
+    "X": "F>+[XF<[-]X>]+X",
+    "F": "FF"
+}
+
+const tree1 = new Tree(axiom, rules1, 4, 6, Math.PI / 6, 50);
+const tree2 = new Tree(axiom, rules2, 4, 6, Math.PI / 6, 50);
+const tree3 = new Tree(axiom, rules3, 4, 6, Math.PI / 6, 50);
+
+function generateTrees(scene, numTrees, tree) {
     for (let i = 0; i < numTrees; i++) {
-        const xPos = Math.random() * 1000 - 500;  
-        const zPos = Math.random() * 1000 - 500;  
-        const yPos = 50;  
+        const xPos = Math.random() * 1000 - 500;
+        const zPos = Math.random() * 1000 - 500;
+        const yPos = 50;
 
-        tree1.generateTree(scene, new THREE.Vector3(xPos, yPos, zPos));  
+        tree.generateTree(scene, new THREE.Vector3(xPos, yPos, zPos));
     }
 }
 
-generateRandomTrees(scene, 10);
+generateTrees(scene, 5, tree1);
+generateTrees(scene, 5, tree2);
+generateTrees(scene, 5, tree3);
