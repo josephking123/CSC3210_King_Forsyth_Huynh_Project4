@@ -247,18 +247,8 @@ function onClick(event) {
     }
 }
 
-function updateRaycaster() {
-    // Use the camera's direction to shoot the ray
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
 
-    // Set the ray's origin to the camera's position
-    raycaster.ray.origin.copy(camera.position);
-
-    // Set the ray's direction to the camera's view direction
-    raycaster.ray.direction.copy(direction);
-}
-
+// Update the terrain for each animation
 function update() {
     delta = clock.getDelta();
     refreshVertices();
@@ -267,10 +257,9 @@ function update() {
     // custom camera update for mouse movement
     updateCamera();
 
-    // Update the raycaster direction
-    updateRaycaster();
 
     // Raycasting
+    raycaster.setFromCamera(pointer, camera);
     const intersects = raycaster.intersectObjects(scene.children, true);
     let intersectedObject = null;
 
@@ -285,7 +274,8 @@ function update() {
             }
             break;
             
-        } else if (intersects.length > 0 && intersects[i].distance < 600) {
+        }
+        else if (intersects.length > 0 && intersects[i].distance < 600) {
             collision = false;
             // Highlight the object
             if (intersectedObject.name.match("sun") || intersectedObject.name.match("moon")) {
@@ -294,18 +284,19 @@ function update() {
             }
             if (intersectedObject.name.match("branch") || intersectedObject.name.match("leaf")) {
                 // Apply highlight to the intersected object
-                if (highlightedObject !== intersectedObject) {
-                    // Remove highlight from the previous object
-                    if (highlightedObject) {
-                        resetHighlight(highlightedObject);
-                    }
-                    // Apply new highlight
-                    applyHighlight(intersectedObject);
-                    highlightedObject = intersectedObject;  // Update the tracked highlighted object
+            if (highlightedObject !== intersectedObject) {
+                // Remove highlight from the previous object
+                if (highlightedObject) {
+                    resetHighlight(highlightedObject);
                 }
+                // Apply new highlight
+                applyHighlight(intersectedObject);
+                highlightedObject = intersectedObject;  // Update the tracked highlighted object
+            }
             }
             break;  // Stop processing further intersections after highlighting
-        } else {
+        }
+        else {
             collision = false;
         }
     }
