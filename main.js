@@ -161,7 +161,7 @@ const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, opacity
 
 // Clock used to get the delta time
 var clock = new THREE.Clock();
-var movementSpeed = 200;
+var movementSpeed = 600;
 var delta = clock.getDelta();
 var collision = false;
 
@@ -222,10 +222,8 @@ function updateCamera() {
 
 renderer.domElement.addEventListener('click', onClick, false);
 
-
-// remove leaves/branches when clicked
+// Raycasting and click handler
 function onClick(event) {
-    
     // calculate pointer position
     pointer.x = (event.clientX / width) * 2 - 1;
     pointer.y = -(event.clientY / height) * 2 + 1;
@@ -236,19 +234,40 @@ function onClick(event) {
     // get the first object that intersects with the ray
     const intersects = raycaster.intersectObjects(scene.children, true);
 
-    if (intersects.length > 0) {``
+    if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
 
-        // handle interactions for leaves and branches
+        // Handle removing objects on click (only branches and leaves)
         if (clickedObject.name.match("leaf") || clickedObject.name.match("branch")) {
-            // remove the object from the scene
-            scene.remove(clickedObject);
-        } 
+            scene.remove(clickedObject);  // Remove the clicked object from the scene
+        }
+        
+        // If there is a highlighted object and it's not the same as the clicked object, reset its highlight
+        if (highlightedObject && highlightedObject !== clickedObject) {
+            resetHighlight(highlightedObject);
+        }
+
+        // If we clicked on a highlighted object, reset its highlight (optional)
+        if (highlightedObject === clickedObject) {
+            resetHighlight(clickedObject);
+            highlightedObject = null;  // Reset highlighted object
+        }
     }
 }
 
+// Function to update the raycaster direction
+function updateRaycaster() {
+    // Use the camera's direction to shoot the ray
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
 
-// Update the terrain for each animation
+    // Set the ray's origin to the camera's position
+    raycaster.ray.origin.copy(camera.position);
+
+    // Set the ray's direction to the camera's view direction
+    raycaster.ray.direction.copy(direction);
+}
+
 function update() {
     delta = clock.getDelta();
     refreshVertices();
@@ -257,9 +276,10 @@ function update() {
     // custom camera update for mouse movement
     updateCamera();
 
+    // Update the raycaster direction
+    updateRaycaster();
 
     // Raycasting
-    raycaster.setFromCamera(pointer, camera);
     const intersects = raycaster.intersectObjects(scene.children, true);
     let intersectedObject = null;
 
@@ -274,8 +294,7 @@ function update() {
             }
             break;
             
-        }
-        else if (intersects.length > 0 && intersects[i].distance < 600) {
+        } else if (intersects.length > 0 && intersects[i].distance < 600) {
             collision = false;
             // Highlight the object
             if (intersectedObject.name.match("sun") || intersectedObject.name.match("moon")) {
@@ -284,30 +303,22 @@ function update() {
             }
             if (intersectedObject.name.match("branch") || intersectedObject.name.match("leaf")) {
                 // Apply highlight to the intersected object
-            if (highlightedObject !== intersectedObject) {
-                // Remove highlight from the previous object
-                if (highlightedObject) {
-                    resetHighlight(highlightedObject);
+                if (highlightedObject !== intersectedObject) {
+                    // Remove highlight from the previous object
+                    if (highlightedObject) {
+                        resetHighlight(highlightedObject);
+                    }
+                    // Apply new highlight
+                    applyHighlight(intersectedObject);
+                    highlightedObject = intersectedObject;  // Update the tracked highlighted object
                 }
-                // Apply new highlight
-                applyHighlight(intersectedObject);
-                highlightedObject = intersectedObject;  // Update the tracked highlighted object
-            }
             }
             break;  // Stop processing further intersections after highlighting
-        }
-        else {
+        } else {
             collision = false;
         }
     }
 }
-
-document.addEventListener('keydown', (event) => {
-    if(event.key === 'Escape') {
-        document.exitPointerLock();
-    }
-});
-
 
 // Apply highlight effect to the object
 function applyHighlight(object) {
@@ -397,6 +408,13 @@ function keyHandler(e) {
     }
 }
 document.addEventListener('keydown', keyHandler);
+
+document.addEventListener('keydown', (event) => {
+    if(event.key === 'Escape') {
+        document.exitPointerLock();
+    }
+});
+
 
 class LSystem {
     constructor(axiom, rules, iterations) {
