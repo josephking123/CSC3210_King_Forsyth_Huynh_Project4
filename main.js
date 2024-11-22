@@ -585,7 +585,7 @@ const rules2 = {
 }
 
 const rules3 = {
-    "X": "F>+[XF<[-]X>]+",
+    "X": "F<[+[>F[X]>]+<X",
     "F": "FF"
 }
 
@@ -603,6 +603,6 @@ function generateTrees(scene, numTrees, tree) {
     }
 }
 
-generateTrees(scene, 5, tree1);
-generateTrees(scene, 5, tree2);
-generateTrees(scene, 5, tree3);
+generateTrees(scene, 15, tree1);
+generateTrees(scene, 15, tree2);
+generateTrees(scene, 15, tree3);
