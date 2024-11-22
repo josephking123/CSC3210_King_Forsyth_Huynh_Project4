@@ -273,6 +273,9 @@ function update() {
     refreshVertices();
     daylightCycle(delta);
 
+    // Update head bobbing
+    headBob();
+
     // custom camera update for mouse movement
     updateCamera();
 
@@ -349,27 +352,23 @@ function animate() {
 }
 animate();
 
-var headPosition = 0, increase = true;
+// Head bobbing variables
+let headBobAmplitude = 5; // Maximum height change
+let headBobFrequency = 3; // Speed of the bobbing
+let headBobOffset = 0;
+var isMoving = false; // Check if the player is moving
 /**
  * Head bobbing code to move the camera look at up and down (bonus)
  */
 function headBob() {
-    if (increase) {
-        if (headPosition <= 100) {
-            headPosition += 20;
-        } else {
-            increase = false;
-            headPosition += 20;
-        }
+    if (isMoving) {
+        // Calculate head bobbing offset using sine wave
+        headBobOffset = Math.sin(clock.getElapsedTime() * headBobFrequency) * headBobAmplitude;
+        camera.position.y = 70 + headBobOffset;
     } else {
-        if (headPosition >= -100) {
-            headPosition -= 20;
-        } else {
-            increase = true;
-            headPosition += 20;
-        }
+        // Reset to base height when not moving
+        camera.position.y = 70;
     }
-    camera.lookAt(new THREE.Vector3(0.0, 0.0, headPosition));
 }
 
 // Set up the keyboard controls:
@@ -385,22 +384,27 @@ function keyHandler(e) {
     cameraRight.cross(new THREE.Vector3(0, 1, 0));  // Get the right direction by crossing with up vector
 
     const moveDistance = movementSpeed * delta;
+    isMoving = false;
     switch (e.keyCode) {
         case 87: // W
             // Move forward along camera direction
             if (!collision) {
                 camera.position.add(cameraDirection.multiplyScalar(moveDistance));
             }
+            isMoving = true;
             break;
         case 65: // A
             camera.position.add(cameraRight.multiplyScalar(-moveDistance));
+            isMoving = true;
             break;
         case 83: // S
             // Move the player backward (opposite of camera direction)
             camera.position.add(cameraDirection.multiplyScalar(-moveDistance));
+            isMoving = true;
             break;
         case 68: // D
             camera.position.add(cameraRight.multiplyScalar(moveDistance));
+            isMoving = true;
             break;
         case 70: // F
             // Toggle the flashlight
@@ -413,6 +417,9 @@ document.addEventListener('keydown', (event) => {
     if(event.key === 'Escape') {
         document.exitPointerLock();
     }
+});
+document.addEventListener('keyup', (event) => {
+    isMoving = false;
 });
 
 
