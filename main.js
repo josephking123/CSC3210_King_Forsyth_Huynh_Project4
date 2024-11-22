@@ -32,6 +32,42 @@ var light = new THREE.DirectionalLight(Colors.LightColor, 1.3);
 light.position.set(camera.position.x, camera.position.y + 500, camera.position.z + 500).normalize();
 scene.add(light);
 
+// create flashlight and attach it to camera
+const flashlight = new THREE.SpotLight(Colors.FlashlightColor, 1);
+flashlight.angle = Math.PI / 6;
+flashlight.penumbra = 0.5;
+flashlight.distance = 500;
+//flashlight.decay = 2;
+flashlight.castShadow = true;
+
+// attach light to camera
+camera.add(flashlight);
+scene.add(camera); // readd camera to scene with flashlight
+
+flashlight.target.position.set(0, 0, -1);
+camera.add(flashlight.target);
+
+// boolean to track flashlight toggle
+let flashlightOn = false;
+
+// toggle flashlight on and off
+function toggleFlashlight() {
+    console.log("Toggling flashlight");
+    flashlightOn = !flashlightOn;
+    flashlight.intensity = flashlightOn ? 1 : 0;
+}
+
+// update the flashlight target to always point in the camera's direction
+function updateFlashlightTarget() {
+    flashlight.target.position.set(
+        camera.position.x + 100 * Math.sin(camera.rotation.y),
+        camera.position.y + 100 * Math.sin(camera.rotation.x),
+        camera.position.z + 100 * Math.cos(camera.rotation.y)
+    );
+}
+
+
+
 // Setup the terrain
 // Code taken from the Unit 9 Perlin Terrain Example
 var geometry = new THREE.PlaneGeometry(2000, 2000, 256, 256);
@@ -176,6 +212,7 @@ const canvas = renderer.domElement;
 canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
 document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock || document.webkitExitPointerLock;
 
+// automatically request pointer lock when the canvas is clicked
 canvas.addEventListener('click', () => {
     canvas.requestPointerLock();
 });    
@@ -225,7 +262,7 @@ renderer.domElement.addEventListener('click', onClick, false);
 
 // remove leaves/branches when clicked
 function onClick(event) {
-    
+
     // calculate pointer position
     pointer.x = (event.clientX / width) * 2 - 1;
     pointer.y = -(event.clientY / height) * 2 + 1;
@@ -256,6 +293,7 @@ function update() {
 
     // custom camera update for mouse movement
     updateCamera();
+    updateFlashlightTarget(); //update flashlight direction
 
 
     // Raycasting
@@ -392,7 +430,8 @@ function keyHandler(e) {
             camera.position.add(cameraRight.multiplyScalar(moveDistance));
             break;
         case 70: // F
-            // Toggle the flashlight
+            console.log("attempting to toggle flashlight");
+            toggleFlashlight();
             break;
     }
 }
