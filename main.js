@@ -33,30 +33,37 @@ light.position.set(camera.position.x, camera.position.y + 500, camera.position.z
 scene.add(light);
 
 // create flashlight and attach it to camera
-const flashlight = new THREE.SpotLight(Colors.FlashlightColor, 1);
+const flashlight = new THREE.SpotLight(Colors.LightColor, 5);
 flashlight.angle = Math.PI / 6;
-flashlight.penumbra = 0.5;
 flashlight.distance = 500;
-//flashlight.decay = 2;
-flashlight.castShadow = true;
+flashlight.intensity = 5;
 
+const spotLightHelper = new THREE.SpotLightHelper(flashlight);
+scene.add(spotLightHelper);
+
+
+flashlight.target.position.set(1, 1, 2);
+flashlight.position.set(0, 0, 0);
 // attach light to camera
 camera.add(flashlight);
-scene.add(camera); // readd camera to scene with flashlight
-
-flashlight.target.position.set(0, 0, -1);
 camera.add(flashlight.target);
+scene.add(camera); // re-add camera to scene with flashlight
+
+
 
 // boolean to track flashlight toggle
 let flashlightOn = false;
 
 // toggle flashlight on and off
 function toggleFlashlight() {
-    console.log("Toggling flashlight");
+    console.log("Toggling flashlight: " + flashlightOn);
     flashlightOn = !flashlightOn;
     flashlight.intensity = flashlightOn ? 1 : 0;
 }
 
+function updateFlashlightPosition() {
+    flashlight.position.copy(camera.position);
+}
 // update the flashlight target to always point in the camera's direction
 function updateFlashlightTarget() {
     flashlight.target.position.set(
@@ -313,6 +320,7 @@ function update() {
 
     // custom camera update for mouse movement
     updateCamera();
+    updateFlashlightPosition(); //update flashlight position
     updateFlashlightTarget(); //update flashlight direction
 
     // Update the raycaster direction
